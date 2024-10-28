@@ -1,0 +1,60 @@
+---
+- name: Deploy WordPress with Nginx using Docker Compose
+  hosts: node1
+  become: true
+  tasks:
+    - name: docker
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: GPG ключ Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Добавить репозиторий Docker
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+
+    - name: Установить Docker и плагин Docker Compose
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+    - name: Запустить демон Docker
+      service:
+        name: docker
+        state: started
+        enabled: true
+    - name: Проверка установки Docker Compose
+      command: docker compose version
+      register: compose_version
+
+    - debug:
+        msg: "Docker Compose установлен, версия: {{ compose_version.stdout }}"
+
+    - name: docker-compose.yml
+      copy:
+        src: ./docker-compose.yml
+        dest: /tmp/docker-compose.yml
+
+    - name: nginx.conf
+      copy:
+        src: ./nginx.conf
+        dest: /tmp/nginx.conf
+
+    - name: Запустить Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: /tmp
+        state: present
+
